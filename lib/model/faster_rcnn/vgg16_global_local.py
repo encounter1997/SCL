@@ -91,7 +91,7 @@ class netD_dc(nn.Module):
 
 class vgg16(_fasterRCNN):
   def __init__(self, classes, pretrained=False, class_agnostic=False,lc=False,gc=False):
-    self.model_path = cfg.VGG16_PATH
+    self.model_path = cfg_d.VGG16_PATH
     self.dout_base_model = 512
     self.pretrained = pretrained
     self.class_agnostic = class_agnostic
