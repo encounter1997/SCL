@@ -282,7 +282,7 @@ def set_dataset_args(args, test=False):
                              '30']
         elif args.dataset == "cityscape":
             args.imdb_name = "cityscape_" + args.split
-            # args.imdbval_name = "cityscape_val"
+            args.imdbval_name = args.imdb_name
             args.set_cfgs = ['ANCHOR_SCALES', '[8, 16, 32]', 'ANCHOR_RATIOS', '[0.5,1,2]', 'MAX_NUM_GT_BOXES', '30']
         elif args.dataset == "kitti_car":
             args.imdb_name = "kitti_car_train"
@@ -290,7 +290,7 @@ def set_dataset_args(args, test=False):
             args.set_cfgs = ['ANCHOR_SCALES', '[8, 16, 32]', 'ANCHOR_RATIOS', '[0.5,1,2]', 'MAX_NUM_GT_BOXES', '20']
         elif args.dataset == "foggy_cityscape":
             args.imdb_name = "foggy_cityscape" + args.split
-            # args.imdbval_name = "foggy_cityscape_val"
+            args.imdbval_name = args.imdb_name
             args.set_cfgs = ['ANCHOR_SCALES', '[8, 16, 32]', 'ANCHOR_RATIOS', '[0.5,1,2]', 'MAX_NUM_GT_BOXES', '30']
         elif args.dataset == "cityscape_kitti":
             args.imdb_name = "cityscape_kitti_val"
