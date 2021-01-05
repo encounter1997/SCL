@@ -12,29 +12,28 @@ __D = edict()
 # Consumers can get config by:
 #   from fast_rcnn_config import cfg
 cfg_d = __D
-#
+
+__D.FATHER_DIR_PRETRAIN = '/workspace/data0/wwen/ijcai/datasets/pretrained'
+__D.VGG16_PATH = os.path.join(__D.FATHER_DIR_PRETRAIN, 'vgg16_caffe.pth')
+__D.RES50_PATH = os.path.join(__D.FATHER_DIR_PRETRAIN, 'resnet50_caffe.pth')
+__D.RES101_PATH = os.path.join(__D.FATHER_DIR_PRETRAIN, 'resnet101_caffe.pth')
 # Training options
-# with regard to pascal, the directories under the path will be ./VOC2007, ./VOC2012"
-__D.PASCAL = "./VOC0712"
-__D.PASCALCLIP = ""
-__D.PASCALWATER = "./VOC0712"
+__D.FATHER_DIR = '../datasets'
+#with regard to pascal, the directories under the path will be ./VOC2007, ./VOC2012"
+__D.PASCAL = os.path.join(__D.FATHER_DIR, "VOCdevkit")
+__D.PASCALWATER = os.path.join(__D.FATHER_DIR, "VOCdevkit")
 
 #For these datasets, the directories under the path will be Annotations  ImageSets  JPEGImages."
-__D.CLIPART = "./clipart"
-__D.WATER = "./watercolor"
-__D.SIM10K = "Sim10k/VOC2012"
-__D.SIM10K_CYCLE = "Sim10k_cycle/VOC2012"
-__D.CITYSCAPE_CAR = "./cityscape/VOC2007"
-__D.CITYSCAPE = "./cityscape/VOC2007"
-__D.FOGGYCITY = "./foggy/VOC2007"
-
-__D.INIT_SUNNY = "./init_sunny"
-__D.INIT_NIGHT = "./init_night"
-__D.INIT_RAINY = "./init_rainy"
-__D.INIT_CLOUDY = "./init_cloudy"
-
-__D.KITTI = './KITTI'
-
+__D.CLIPART = os.path.join(__D.FATHER_DIR, "clipart")
+__D.WATER = os.path.join(__D.FATHER_DIR, "watercolor")
+__D.SIM10K = os.path.join(__D.FATHER_DIR, "sim10k")
+__D.KITTI = os.path.join(__D.FATHER_DIR, "kitti")
+__D.CITYSCAPE_CAR = os.path.join(__D.FATHER_DIR, "cityscapes")
+__D.CITYSCAPE = os.path.join(__D.FATHER_DIR, "cityscapes")
+__D.FOGGYCITY = os.path.join(__D.FATHER_DIR, "cityscapes_foggy")
+__D.CITY2FOGGY = os.path.join(__D.FATHER_DIR, "city2foggy")
+__D.SIM2CITY = os.path.join(__D.FATHER_DIR, "sim2city")
+__D.KITTI2CITY = os.path.join(__D.FATHER_DIR, "kitti2city")
 
 
 

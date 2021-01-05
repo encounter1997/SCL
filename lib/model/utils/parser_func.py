@@ -144,8 +144,8 @@ def set_dataset_args(args, test=False):
             args.imdb_name_cycle = "voc_cycleclipart_2007_trainval+voc_cycleclipart_2012_trainval"
             args.set_cfgs = ['ANCHOR_SCALES', '[8, 16, 32]', 'ANCHOR_RATIOS', '[0.5,1,2]', 'MAX_NUM_GT_BOXES', '20']
         elif args.dataset == "foggy_cityscape":
-            args.imdb_name = "foggy_cityscape_trainval"
-            args.imdbval_name = "foggy_cityscape_trainval"
+            args.imdb_name = "foggy_cityscape_train"
+            # args.imdbval_name = "foggy_cityscape_trainval"
             args.set_cfgs = ['ANCHOR_SCALES', '[8, 16, 32]', 'ANCHOR_RATIOS', '[0.5,1,2]', 'MAX_NUM_GT_BOXES',
                              '30']
         elif args.dataset == "vg":
@@ -154,7 +154,7 @@ def set_dataset_args(args, test=False):
             args.set_cfgs = ['ANCHOR_SCALES', '[4, 8, 16, 32]', 'ANCHOR_RATIOS', '[0.5,1,2]', 'MAX_NUM_GT_BOXES', '50']
         elif args.dataset == "cityscape":
             args.imdb_name = "cityscape_train"
-            args.imdbval_name = "cityscape_val"
+            # args.imdbval_name = "cityscape_val"
             args.set_cfgs = ['ANCHOR_SCALES', '[8, 16, 32]', 'ANCHOR_RATIOS', '[0.5,1,2]', 'MAX_NUM_GT_BOXES',
                              '30']
         elif args.dataset == "sim10k":
@@ -267,7 +267,7 @@ def set_dataset_args(args, test=False):
             args.imdbval_name = "kitti_car_train"
             args.set_cfgs = ['ANCHOR_SCALES', '[8, 16, 32]', 'ANCHOR_RATIOS', '[0.5,1,2]', 'MAX_NUM_GT_BOXES', '20']
         elif args.dataset == "foggy_cityscape":
-            args.imdb_name = "foggy_cityscape_test"
+            args.imdb_name = "foggy_cityscape_val"
             args.imdbval_name = "foggy_cityscape_val"
             args.set_cfgs = ['ANCHOR_SCALES', '[8, 16, 32]', 'ANCHOR_RATIOS', '[0.5,1,2]', 'MAX_NUM_GT_BOXES', '30']
         elif args.dataset == "cityscape_kitti":
