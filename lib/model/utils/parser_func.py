@@ -28,6 +28,9 @@ def parse_args():
     parser.add_argument('--split', dest='split',
                         help='train or val', choices=['train', 'val'],
                         default='val', type=str)
+    parser.add_argument('--mode', dest='mode',
+                        help='train or eval', choices=['train', 'eval'],
+                        default='eval', type=str)
     parser.add_argument('--dataset', dest='dataset',
                         help='source training dataset',
                         default='cityscape', type=str)

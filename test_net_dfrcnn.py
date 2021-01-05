@@ -249,10 +249,10 @@ if __name__ == '__main__':
   save_dir = os.path.join(args.load_name[:-4])
   if not os.path.exists(save_dir):
       os.makedirs(save_dir)
-  save_name = os.path.join(save_dir, './all_dets_{}_{}_filter{}_mAP{:.3f}.pkl'.format(args.dataset, args.split, args.filter, mAP))
-  with open(save_name.format(args.mode), 'wb') as f:
+  save_name = os.path.join(save_dir, 'dfrcnn_dets_{}_{}_filter{}_mAP{:.3f}.pkl'.format(args.dataset, args.split, args.filter, mAP))
+  with open(save_name, 'wb') as f:
       pickle.dump(all_dets_cls_loc, f, pickle.HIGHEST_PROTOCOL)
-  print("all_dets cls and loc score saved to {}".format(save_name.format(args.mode)))
+  print("all_dets cls and loc score saved to {}".format(save_name))
 
   end = time.time()
   print("test time: %0.4fs" % (end - start))
