@@ -7,15 +7,21 @@ def parse_args():
     Parse input arguments
     """
     parser = argparse.ArgumentParser(description='Train a Fast R-CNN network')
+    parser.add_argument('--load_pred', dest='load_pred',
+                        help='load pre-computed boxes',
+                        action='store_true')
+    parser.add_argument('--no_filter', dest='no_filter',
+                        help='do not filter rois for statistic',
+                        action='store_true')
     parser.add_argument('--dataset', dest='dataset',
                         help='source training dataset',
-                        default='pascal_voc_0712', type=str)
+                        default='cityscape', type=str)
     parser.add_argument('--dataset_t', dest='dataset_t',
                         help='target training dataset',
-                        default='clipart', type=str)
+                        default='foggy_cityscape', type=str)
     parser.add_argument('--net', dest='net',
                         help='vgg16, res101 res50',
-                        default='res101', type=str)
+                        default='vgg16', type=str)
     parser.add_argument('--start_epoch', dest='start_epoch',
                         help='starting epoch',
                         default=1, type=int)
@@ -33,7 +39,8 @@ def parse_args():
                         default=10000, type=int)
 
     parser.add_argument('--save_dir', dest='save_dir',
-                        help='directory to save models', default="models",
+                        help='directory to save models',
+                        default="/workspace/data1/wwen/ijcai/SCL/dafaster/models",
                         type=str)
     parser.add_argument('--load_name', dest='load_name',
                         help='path to load models', default="models",

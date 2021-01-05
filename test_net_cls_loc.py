@@ -7,16 +7,21 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import _init_paths
 import os
 import sys
 import numpy as np
+import argparse
 import pprint
+import pdb
 import time
-import _init_paths
+
+import cv2
 
 import torch
-
 from torch.autograd import Variable
+import torch.nn as nn
+import torch.optim as optim
 import pickle
 from roi_data_layer.roidb import combined_roidb
 from roi_data_layer.roibatchLoader import roibatchLoader
@@ -24,16 +29,17 @@ from model.utils.config import cfg, cfg_from_file, cfg_from_list, get_output_dir
 from model.rpn.bbox_transform import clip_boxes
 from model.nms.nms_wrapper import nms
 from model.rpn.bbox_transform import bbox_transform_inv
-#from model.utils.net_utils import save_net, load_net, vis_detections
-from model.utils.parser_func import parse_args,set_dataset_args
+from model.utils.net_utils import save_net, load_net, vis_detections
 
-import pdb
+from model.faster_rcnn.vgg16 import vgg16
+from model.faster_rcnn.resnet import resnet
+
+from model.utils.parser_func import parse_args, set_dataset_args
 
 try:
     xrange          # Python 2
 except NameError:
     xrange = range  # Python 3
-
 
 
 lr = cfg.TRAIN.LEARNING_RATE
@@ -46,9 +52,11 @@ if __name__ == '__main__':
 
   print('Called with args:')
   print(args)
-  args = set_dataset_args(args,test=True)
+  args = set_dataset_args(args, test=True)
+
   if torch.cuda.is_available() and not args.cuda:
     print("WARNING: You have a CUDA device, so you should probably run with --cuda")
+
   np.random.seed(cfg.RNG_SEED)
 
   if args.cfg_file is not None:
@@ -56,8 +64,8 @@ if __name__ == '__main__':
   if args.set_cfgs is not None:
     cfg_from_list(args.set_cfgs)
 
-  # print('Using config:')
-  # pprint.pprint(cfg)
+  print('Using config:')
+  pprint.pprint(cfg)
 
   cfg.TRAIN.USE_FLIPPED = False
   imdb, roidb, ratio_list, ratio_index = combined_roidb(args.imdbval_name, False)
@@ -66,19 +74,17 @@ if __name__ == '__main__':
   print('{:d} roidb entries'.format(len(roidb)))
 
   # initilize the network here.
-  from model.faster_rcnn.vgg16_global_local import vgg16
-  from model.faster_rcnn.resnet_dfrcnn import resnet
-
   if args.net == 'vgg16':
-    fasterRCNN = vgg16(imdb.classes, pretrained=True, class_agnostic=args.class_agnostic,lc=args.lc,gc=args.gc)
+    fasterRCNN = vgg16(imdb.classes, pretrained=False, class_agnostic=args.class_agnostic)
   elif args.net == 'res101':
-    fasterRCNN = resnet(imdb.classes, 101, pretrained=True, class_agnostic=args.class_agnostic,lc=args.lc,gc=args.gc)
-  #elif args.net == 'res50':
-  #  fasterRCNN = resnet(imdb.classes, 50, pretrained=True, class_agnostic=args.class_agnostic,context=args.context)
-
+    fasterRCNN = resnet(imdb.classes, 101, pretrained=False, class_agnostic=args.class_agnostic)
+  elif args.net == 'res50':
+    fasterRCNN = resnet(imdb.classes, 50, pretrained=False, class_agnostic=args.class_agnostic)
+  elif args.net == 'res152':
+    fasterRCNN = resnet(imdb.classes, 152, pretrained=False, class_agnostic=args.class_agnostic)
   else:
     print("network is not defined")
-    pdb.set_trace()
+    # pdb.set_trace()
 
   fasterRCNN.create_architecture()
 
@@ -116,19 +122,29 @@ if __name__ == '__main__':
     fasterRCNN.cuda()
 
   start = time.time()
-  max_per_image = 100 if args.filter else -1  # NOTE: keep all proposals
+  max_per_image = 100 if args.filter else -1 # NOTE: keep all proposals
 
-  thresh = 0.0
+  vis = args.vis
 
+  if vis:
+    thresh = 0.05
+    vis_dir = os.path.join('/workspace/data0/wwen/ijcai/faster-rcnn-vis/visual', 'pred')
+    if not os.path.exists(vis_dir):
+        os.makedirs(vis_dir)
+  else:
+    thresh = 0.0
 
-  save_name = args.load_name.split('/')[-1]
+  # NOTE: set thresh as 0.0 to keep all proposals
+  thresh = thresh if args.filter else 0.0
+
+  save_name =  args.load_name.split('/')[-1]
   num_images = len(imdb.image_index)
   all_boxes = [[[] for _ in xrange(num_images)]
                for _ in xrange(imdb.num_classes)]
 
   output_dir = get_output_dir(imdb, save_name)
   dataset = roibatchLoader(roidb, ratio_list, ratio_index, 1, \
-                        imdb.num_classes, training=False, normalize = False, path_return=True)
+                        imdb.num_classes, training=False, normalize=False, path_return=vis)
   dataloader = torch.utils.data.DataLoader(dataset, batch_size=1,
                             shuffle=False, num_workers=0,
                             pin_memory=True)
@@ -138,14 +154,20 @@ if __name__ == '__main__':
   _t = {'im_detect': time.time(), 'misc': time.time()}
   det_file = os.path.join(output_dir, 'detections.pkl')
 
-  fasterRCNN.eval()
+  # fasterRCNN.eval()
+  if args.mode == 'train':
+      fasterRCNN.train()  # NOTE: set model in train mode
+  elif args.mode == 'eval':
+      fasterRCNN.eval()
+  else:
+      raise ValueError
+
   if not args.load_pred:
       empty_array = np.transpose(np.array([[],[],[],[],[]]), (1,0))
       for i in range(num_images):
 
           data = next(data_iter)
           im_data.data.resize_(data[0].size()).copy_(data[0])
-          #print(data[0].size())
           im_info.data.resize_(data[1].size()).copy_(data[1])
           gt_boxes.data.resize_(data[2].size()).copy_(data[2])
           num_boxes.data.resize_(data[3].size()).copy_(data[3])
@@ -154,12 +176,10 @@ if __name__ == '__main__':
           rois, cls_prob, bbox_pred, \
           rpn_loss_cls, rpn_loss_box, \
           RCNN_loss_cls, RCNN_loss_bbox, \
-          rois_label,out_d_img, out_d_inst, dim = fasterRCNN(im_data, im_info, gt_boxes, num_boxes)
+          rois_label = fasterRCNN(im_data, im_info, gt_boxes, num_boxes)
 
           scores = cls_prob.data
           boxes = rois.data[:, :, 1:5]
-          # d_pred = d_pred.data
-          path = data[4]
 
           if cfg.TEST.BBOX_REG:
               # Apply bounding-box regression deltas
@@ -179,7 +199,8 @@ if __name__ == '__main__':
               pred_boxes = clip_boxes(pred_boxes, im_info.data, 1)
           else:
               # Simply repeat the boxes, once for each class
-              pred_boxes = np.tile(boxes, (1, scores.shape[1]))
+              _ = torch.from_numpy(np.tile(boxes, (1, scores.shape[1])))
+              pred_boxes = _.cuda() if args.cuda > 0 else _
 
           pred_boxes /= data[1][0][2].item()
 
@@ -190,7 +211,9 @@ if __name__ == '__main__':
           det_toc = time.time()
           detect_time = det_toc - det_tic
           misc_tic = time.time()
-
+          if vis:
+              im = cv2.imread(imdb.image_path_at(i))
+              im2show = np.copy(im)
           for j in xrange(1, imdb.num_classes):
               inds = torch.nonzero(scores[:,j]>thresh).view(-1)
               # if there is det
@@ -205,13 +228,14 @@ if __name__ == '__main__':
                 cls_dets = torch.cat((cls_boxes, cls_scores.unsqueeze(1)), 1)
                 # cls_dets = torch.cat((cls_boxes, cls_scores), 1)
                 cls_dets = cls_dets[order]
-                # keep = nms(cls_dets, cfg.TEST.NMS)
+                # NOTE: keep all proposals
                 if args.filter:
                     keep = nms(cls_dets, cfg.TEST.NMS)
                 else:
                     keep = torch.Tensor(list(range(num_proposals))).long().unsqueeze(-1)
                 cls_dets = cls_dets[keep.view(-1).long()]
-
+                if vis:
+                  im2show = vis_detections(im2show, imdb.classes[j], cls_dets.cpu().numpy(), 0.3)
                 all_boxes[j][i] = cls_dets.cpu().numpy()
               else:
                 all_boxes[j][i] = empty_array
@@ -233,26 +257,49 @@ if __name__ == '__main__':
               .format(i + 1, num_images, detect_time, nms_time))
           sys.stdout.flush()
 
-  else:
+          if vis:
+              input_path = imdb.image_path_at(i)
+              vis_path = os.path.join(vis_dir, os.path.basename(input_path))
+              cv2.imwrite(vis_path, im2show)
+              # pdb.set_trace()
+              #cv2.imshow('test', im2show)
+              #cv2.waitKey(0)
+
       with open(det_file, 'wb') as f:
           pickle.dump(all_boxes, f, pickle.HIGHEST_PROTOCOL)
 
-  # print('Evaluating detections')
-  # imdb.evaluate_detections(all_boxes, output_dir)
-  #
-  # end = time.time()
-  # print("test time: %0.4fs" % (end - start))
+  else:
+      with open(det_file, 'rb') as f:
+          all_boxes = pickle.load(f)
 
   print('Evaluating detections')
   all_dets_cls_loc, mAP = imdb.evaluate_detections(all_boxes, output_dir, cls_loc=True)
-  # save all_dets's cls_score and IoU
-  save_dir = os.path.join(args.load_name[:-4])
-  if not os.path.exists(save_dir):
-      os.makedirs(save_dir)
-  save_name = os.path.join('./all_dets_{}_{}_filter{}_mAP{:.3f}.pkl'.format(args.dataset, args.split, args.filter, mAP))
+  # TODO: save all_dets's cls_score and IoU
+
+  save_name = './roi_stat/all_dets_{}_{}_filter{}_mAP{:.3f}.pkl'.format(args.dataset, args.split, args.filter, mAP)
   with open(save_name.format(args.mode), 'wb') as f:
       pickle.dump(all_dets_cls_loc, f, pickle.HIGHEST_PROTOCOL)
   print("all_dets cls and loc score saved to {}".format(save_name.format(args.mode)))
 
   end = time.time()
   print("test time: %0.4fs" % (end - start))
+
+  # all_cls_scores = []
+  # all_loc_scores = []
+  # for cls_name, cls_dets in all_dets_cls_loc.items():
+  #     for det in cls_dets:
+  #         image_name, cls_score, loc_score = det
+  #         all_cls_scores.append(cls_score)
+  #         all_loc_scores.append(loc_score)
+  #
+  # import matplotlib.pyplot as plt
+  #
+  # plt.title("IoU vs. Classification Confidence")
+  # plt.xlim(xmax=1, xmin=0)
+  # plt.ylim(ymax=1, ymin=0)
+  # # plt.annotate("(3,6)", xy=(3, 6), xytext=(4, 5), arrowprops=dict(facecolor='black', shrink=0.1))
+  # plt.xlabel("IoU")
+  # plt.ylabel("Classification Confidence")
+  # plt.plot(all_loc_scores, all_cls_scores, 'ro')
+  # # plt.show()
+  # plt.savefig("./figure_{}.png".format(args.mode))

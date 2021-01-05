@@ -23,30 +23,27 @@ import pickle
 from .imdb import imdb
 from .imdb import ROOT_DIR
 from . import ds_utils
-from .voc_eval import voc_eval, voc_eval_cls_loc
+from .voc_eval import voc_eval
 
 # TODO: make fast_rcnn irrelevant
 # >>>> obsolete, because it depends on sth outside of this project
 from model.utils.config import cfg
 from .config_dataset import cfg_d
 
+
 try:
     xrange  # Python 2
 except NameError:
     xrange = range  # Python 3
 
-
-# <<<< obsolete
-
-
 class foggy_cityscape(imdb):
     def __init__(self, image_set, devkit_path=None):
-        imdb.__init__(self, 'foggy_cityscape_' + image_set)
+        imdb.__init__(self, 'cityscape_foggy_' + image_set)
         self._year = 2007
         self._image_set = image_set
         self._devkit_path = cfg_d.FOGGYCITY
         self._data_path = os.path.join(self._devkit_path)
-        self._classes = ('__background__',  # always index 0
+        self._classes = ('__background__',
                          'bus', 'bicycle', 'car', 'motorcycle', 'person', 'rider', 'train', 'truck')
         self._class_to_ind = dict(zip(self.classes, xrange(self.num_classes)))
         self._image_ext = '.jpg'
@@ -100,11 +97,16 @@ class foggy_cityscape(imdb):
         # self._devkit_path + /VOCdevkit2007/VOC2007/ImageSets/Main/val.txt
         image_set_file = os.path.join(self._data_path, 'ImageSets', 'Main',
                                       self._image_set + '.txt')
+        print(image_set_file)
         assert os.path.exists(image_set_file), \
             'Path does not exist: {}'.format(image_set_file)
         with open(image_set_file) as f:
             image_index = [x.strip() for x in f.readlines()]
-        return image_index
+        new = []
+        for image in image_index:
+            if not 'source' in image:
+                new.append(image)
+        return new
 
     def _get_default_path(self):
         """
@@ -202,8 +204,7 @@ class foggy_cityscape(imdb):
     def _load_pascal_annotation(self, index):
         """
         Load image and bounding boxes info from XML file in the PASCAL VOC
-        format. Some images contain classes which are not included in self._classes.
-        This code excludes the bounding boxes of such classes.
+        format. Exclude bounding boxes which are not included in self._classes.
         """
         filename = os.path.join(self._data_path, 'Annotations', index + '.xml')
         tree = ET.parse(filename)
@@ -215,7 +216,6 @@ class foggy_cityscape(imdb):
                 cls = self._class_to_ind[obj.find('name').text.lower().strip()]
                 count += 1
             except:
-                print(filename)
                 continue
 
         num_objs = count  # len(objs)
@@ -230,12 +230,15 @@ class foggy_cityscape(imdb):
         # Load object bounding boxes into a data frame.
         for ix, obj in enumerate(objs):
             bbox = obj.find('bndbox')
+            if (bbox==None):
+                continue
             # Make pixel indexes 0-based
-            x1 = float(bbox.find('xmin').text) - 1
-            y1 = float(bbox.find('ymin').text) - 1
-            x2 = float(bbox.find('xmax').text) - 1
-            y2 = float(bbox.find('ymax').text) - 1
-
+            x1 = float(bbox.find('xmin').text)# - 1
+            y1 = float(bbox.find('ymin').text)# - 1
+            x2 = float(bbox.find('xmax').text)# - 1
+            y2 = float(bbox.find('ymax').text)# - 1
+            if(x1 < 0 or y1 < 0):
+                continue
             diffc = obj.find('difficult')
             difficult = 0 if diffc == None else int(diffc.text)
 
@@ -308,67 +311,42 @@ class foggy_cityscape(imdb):
         print('VOC07 metric? ' + ('Yes' if use_07_metric else 'No'))
         if not os.path.isdir(output_dir):
             os.mkdir(output_dir)
-        for i, cls in enumerate(self._classes):
-            if cls == '__background__':
-                continue
-            filename = self._get_voc_results_file_template().format(cls)
-            rec, prec, ap = voc_eval(
-                filename, annopath, imagesetfile, cls, cachedir, ovthresh=0.5,
-                use_07_metric=use_07_metric)
-            aps += [ap]
-            print('AP for {} = {:.4f}'.format(cls, ap))
-            with open(os.path.join(output_dir, cls + '_pr.pkl'), 'wb') as f:
-                pickle.dump({'rec': rec, 'prec': prec, 'ap': ap}, f)
-        print('Mean AP = {:.4f}'.format(np.mean(aps)))
-        print('~~~~~~~~')
-        print('Results:')
-        for ap in aps:
-            print('{:.3f}'.format(ap))
-        print('{:.3f}'.format(np.mean(aps)))
-        print('~~~~~~~~')
-        print('')
-        print('--------------------------------------------------------------')
-        print('Results computed with the **unofficial** Python eval code.')
-        print('Results should be very close to the official MATLAB eval code.')
-        print('Recompute with `./tools/reval.py --matlab ...` for your paper.')
-        print('-- Thanks, The Management')
-        print('--------------------------------------------------------------')
-
-    def _python_eval_cls_loc(self, output_dir='output'):
-        all_dets_cls_loc = {}
-        annopath = os.path.join(
-            self._devkit_path,
-            'Annotations',
-            '{:s}.xml')
-        imagesetfile = os.path.join(
-            self._devkit_path,
-            'ImageSets',
-            'Main',
-            self._image_set + '.txt')
-        cachedir = os.path.join(self._devkit_path, 'annotations_cache')
-        aps = []
-        # The PASCAL VOC metric changed in 2010
-        use_07_metric = True if int(self._year) < 2010 else False
-        print('VOC07 metric? ' + ('Yes' if use_07_metric else 'No'))
-        if not os.path.isdir(output_dir):
-            os.mkdir(output_dir)
-        for i, cls in enumerate(self._classes):
-            if cls == '__background__':
-                continue
-            filename = self._get_voc_results_file_template().format(cls)
-            rec, prec, ap, cls_dets_cls_loc = voc_eval_cls_loc(
-                filename, annopath, imagesetfile, cls, cachedir, ovthresh=0.5, use_07_metric=use_07_metric
-            )
-            all_dets_cls_loc[cls] = cls_dets_cls_loc
-            aps += [ap]
-            print('AP for {} = {:.4f}'.format(cls, ap))
-            # with open(os.path.join(output_dir, cls + '_pr.pkl'), 'wb') as f:
-            #     pickle.dump({'rec': rec, 'prec': prec, 'ap': ap}, f)
-        print('Mean AP = {:.4f}'.format(np.mean(aps)))
-
-        return all_dets_cls_loc, np.mean(aps)
-
-
+        saved_val = []
+        # thresh = [0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95]
+        thresh = [0.5]
+        for element in thresh:
+            aps = []
+            for i, cls in enumerate(self._classes):
+                if cls == '__background__':
+                    continue
+                filename = self._get_voc_results_file_template().format(cls)
+                rec, prec, ap = voc_eval(
+                    filename, annopath, imagesetfile, cls, cachedir, ovthresh=element,
+                    use_07_metric=use_07_metric)
+                aps += [ap]
+                with open(os.path.join(output_dir, 'eval_result.txt'), 'a') as result_f:
+                    result_f.write('AP for {} = {:.4f}'.format(cls, ap) + '\n')
+                print('AP for {} = {:.4f}'.format(cls, ap))
+                with open(os.path.join(output_dir, cls + '_pr.pkl'), 'wb') as f:
+                    pickle.dump({'rec': rec, 'prec': prec, 'ap': ap}, f)
+            with open(os.path.join(output_dir, 'eval_result.txt'), 'a') as result_f:
+                result_f.write('Mean AP = {:.4f}'.format(np.mean(aps)) + '\n')
+            saved_val.append(np.mean(aps))
+            print('Mean AP = {:.4f}'.format(np.mean(aps)))
+            print('~~~~~~~~')
+            print('Results:')
+            for ap in aps:
+                print('{:.3f}'.format(ap))
+            print('{:.3f}'.format(np.mean(aps)))
+            print('~~~~~~~~')
+            print('')
+            print('--------------------------------------------------------------')
+            print('Results computed with the **unofficial** Python eval code.')
+            print('Results should be very close to the official MATLAB eval code.')
+            print('Recompute with `./tools/reval.py --matlab ...` for your paper.')
+            print('-- Thanks, The Management')
+            print('--------------------------------------------------------------')
+        # np.save("foggy_cityscape_CVPR18.npy", saved_val)
     def _do_matlab_eval(self, output_dir='output'):
         print('-----------------------------------------------------')
         print('Computing results with the official MATLAB eval code.')
@@ -384,12 +362,9 @@ class foggy_cityscape(imdb):
         print('Running:\n{}'.format(cmd))
         status = subprocess.call(cmd, shell=True)
 
-    def evaluate_detections(self, all_boxes, output_dir, cls_loc=False):
+    def evaluate_detections(self, all_boxes, output_dir):
         self._write_voc_results_file(all_boxes)
-        if cls_loc:
-            all_dets_cls_loc, mAP = self._python_eval_cls_loc(output_dir)
-        else:
-            self._do_python_eval(output_dir)
+        self._do_python_eval(output_dir)
         if self.config['matlab_eval']:
             self._do_matlab_eval(output_dir)
         if self.config['cleanup']:
@@ -398,9 +373,6 @@ class foggy_cityscape(imdb):
                     continue
                 filename = self._get_voc_results_file_template().format(cls)
                 os.remove(filename)
-
-        if cls_loc:
-            return all_dets_cls_loc, mAP
 
     def competition_mode(self, on):
         if on:

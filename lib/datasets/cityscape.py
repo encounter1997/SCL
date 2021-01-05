@@ -23,7 +23,7 @@ import pickle
 from .imdb import imdb
 from .imdb import ROOT_DIR
 from . import ds_utils
-from .voc_eval import voc_eval
+from .voc_eval import voc_eval, voc_eval_cls_loc
 
 # TODO: make fast_rcnn irrelevant
 # >>>> obsolete, because it depends on sth outside of this project
@@ -230,15 +230,11 @@ class cityscape(imdb):
         # Load object bounding boxes into a data frame.
         for ix, obj in enumerate(objs):
             bbox = obj.find('bndbox')
-            if bbox == None:
-                continue
             # Make pixel indexes 0-based
-            x1 = float(bbox.find('xmin').text) #- 1
-            y1 = float(bbox.find('ymin').text) #- 1
-            x2 = float(bbox.find('xmax').text) #- 1
-            y2 = float(bbox.find('ymax').text) #- 1
-            if x1<0 or y1<0:
-                continue
+            x1 = float(bbox.find('xmin').text) - 1
+            y1 = float(bbox.find('ymin').text) - 1
+            x2 = float(bbox.find('xmax').text) - 1
+            y2 = float(bbox.find('ymax').text) - 1
 
             diffc = obj.find('difficult')
             difficult = 0 if diffc == None else int(diffc.text)
@@ -338,6 +334,41 @@ class cityscape(imdb):
         print('-- Thanks, The Management')
         print('--------------------------------------------------------------')
 
+    def _python_eval_cls_loc(self, output_dir='output'):
+        all_dets_cls_loc = {}
+        annopath = os.path.join(
+            self._devkit_path,
+            'Annotations',
+            '{:s}.xml')
+        imagesetfile = os.path.join(
+            self._devkit_path,
+            'ImageSets',
+            'Main',
+            self._image_set + '.txt')
+        cachedir = os.path.join(self._devkit_path, 'annotations_cache')
+        aps = []
+        # The PASCAL VOC metric changed in 2010
+        use_07_metric = True if int(self._year) < 2010 else False
+        print('VOC07 metric? ' + ('Yes' if use_07_metric else 'No'))
+        if not os.path.isdir(output_dir):
+            os.mkdir(output_dir)
+        for i, cls in enumerate(self._classes):
+            if cls == '__background__':
+                continue
+            filename = self._get_voc_results_file_template().format(cls)
+            rec, prec, ap, cls_dets_cls_loc = voc_eval_cls_loc(
+                filename, annopath, imagesetfile, cls, cachedir, ovthresh=0.5, use_07_metric=use_07_metric
+            )
+            all_dets_cls_loc[cls] = cls_dets_cls_loc
+            aps += [ap]
+            print('AP for {} = {:.4f}'.format(cls, ap))
+            # with open(os.path.join(output_dir, cls + '_pr.pkl'), 'wb') as f:
+            #     pickle.dump({'rec': rec, 'prec': prec, 'ap': ap}, f)
+        print('Mean AP = {:.4f}'.format(np.mean(aps)))
+
+        return all_dets_cls_loc, np.mean(aps)
+
+
     def _do_matlab_eval(self, output_dir='output'):
         print('-----------------------------------------------------')
         print('Computing results with the official MATLAB eval code.')
@@ -353,9 +384,12 @@ class cityscape(imdb):
         print('Running:\n{}'.format(cmd))
         status = subprocess.call(cmd, shell=True)
 
-    def evaluate_detections(self, all_boxes, output_dir):
+    def evaluate_detections(self, all_boxes, output_dir, cls_loc=False):
         self._write_voc_results_file(all_boxes)
-        self._do_python_eval(output_dir)
+        if cls_loc:
+            all_dets_cls_loc, mAP = self._python_eval_cls_loc(output_dir)
+        else:
+            self._do_python_eval(output_dir)
         if self.config['matlab_eval']:
             self._do_matlab_eval(output_dir)
         if self.config['cleanup']:
@@ -364,6 +398,9 @@ class cityscape(imdb):
                     continue
                 filename = self._get_voc_results_file_template().format(cls)
                 os.remove(filename)
+
+        if cls_loc:
+            return all_dets_cls_loc, mAP
 
     def competition_mode(self, on):
         if on:
