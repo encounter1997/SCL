@@ -2,6 +2,17 @@ import argparse
 from model.utils.config import cfg, cfg_from_file, cfg_from_list
 
 
+def str2bool(v):
+    if isinstance(v, bool):
+        return v
+    if v.lower() in ('true',):
+        return True
+    elif v.lower() in ('false'):
+        return False
+    else:
+        raise argparse.ArgumentTypeError('Boolean value expected.')
+
+
 def parse_args():
     """
     Parse input arguments
@@ -10,9 +21,10 @@ def parse_args():
     parser.add_argument('--load_pred', dest='load_pred',
                         help='load pre-computed boxes',
                         action='store_true')
-    parser.add_argument('--no_filter', dest='no_filter',
-                        help='do not filter rois for statistic',
-                        action='store_true')
+    parser.add_argument('--filter', dest='filter',
+                        help='filter rois for statistic',
+                        default=True,
+                        action=str2bool)
     parser.add_argument('--dataset', dest='dataset',
                         help='source training dataset',
                         default='cityscape', type=str)
