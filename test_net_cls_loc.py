@@ -276,10 +276,10 @@ if __name__ == '__main__':
   all_dets_cls_loc, mAP = imdb.evaluate_detections(all_boxes, output_dir, cls_loc=True)
   # TODO: save all_dets's cls_score and IoU
 
-  save_name = './roi_stat/all_dets_{}_{}_filter{}_mAP{:.3f}.pkl'.format(args.dataset, args.split, args.filter, mAP)
-  with open(save_name.format(args.mode), 'wb') as f:
+  save_name = './roi_stat/dfrcnn_dets_{}_{}_filter{}_mAP{:.3f}_mode{}.pkl'.format(args.dataset, args.split, args.filter, mAP, args.mode)
+  with open(save_name, 'wb') as f:
       pickle.dump(all_dets_cls_loc, f, pickle.HIGHEST_PROTOCOL)
-  print("all_dets cls and loc score saved to {}".format(save_name.format(args.mode)))
+  print("all_dets cls and loc score saved to {}".format(save_name))
 
   end = time.time()
   print("test time: %0.4fs" % (end - start))
