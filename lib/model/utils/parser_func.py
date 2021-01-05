@@ -24,7 +24,7 @@ def parse_args():
     parser.add_argument('--filter', dest='filter',
                         help='filter rois for statistic',
                         default=True,
-                        action=str2bool)
+                        type=str2bool)
     parser.add_argument('--dataset', dest='dataset',
                         help='source training dataset',
                         default='cityscape', type=str)
