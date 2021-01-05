@@ -25,6 +25,9 @@ def parse_args():
                         help='filter rois for statistic',
                         default=True,
                         type=str2bool)
+    parser.add_argument('--split', dest='split',
+                        help='train or val', choices=['train', 'val'],
+                        default='val', type=str)
     parser.add_argument('--dataset', dest='dataset',
                         help='source training dataset',
                         default='cityscape', type=str)
@@ -278,16 +281,16 @@ def set_dataset_args(args, test=False):
             args.set_cfgs = ['ANCHOR_SCALES', '[8, 16, 32]', 'ANCHOR_RATIOS', '[0.5,1,2]', 'MAX_NUM_GT_BOXES',
                              '30']
         elif args.dataset == "cityscape":
-            args.imdb_name = "cityscape_val"
-            args.imdbval_name = "cityscape_val"
+            args.imdb_name = "cityscape_" + args.split
+            # args.imdbval_name = "cityscape_val"
             args.set_cfgs = ['ANCHOR_SCALES', '[8, 16, 32]', 'ANCHOR_RATIOS', '[0.5,1,2]', 'MAX_NUM_GT_BOXES', '30']
         elif args.dataset == "kitti_car":
             args.imdb_name = "kitti_car_train"
             args.imdbval_name = "kitti_car_train"
             args.set_cfgs = ['ANCHOR_SCALES', '[8, 16, 32]', 'ANCHOR_RATIOS', '[0.5,1,2]', 'MAX_NUM_GT_BOXES', '20']
         elif args.dataset == "foggy_cityscape":
-            args.imdb_name = "foggy_cityscape_val"
-            args.imdbval_name = "foggy_cityscape_val"
+            args.imdb_name = "foggy_cityscape" + args.split
+            # args.imdbval_name = "foggy_cityscape_val"
             args.set_cfgs = ['ANCHOR_SCALES', '[8, 16, 32]', 'ANCHOR_RATIOS', '[0.5,1,2]', 'MAX_NUM_GT_BOXES', '30']
         elif args.dataset == "cityscape_kitti":
             args.imdb_name = "cityscape_kitti_val"
